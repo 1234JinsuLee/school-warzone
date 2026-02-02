@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SCHOOL WARZONE - ARSENAL UPDATE</title>
+<title>SCHOOL WARZONE - REMASTERED</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -78,12 +78,12 @@ canvas{display:block}
 </div>
 <div class="screen" id="startScreen">
   <h1>SCHOOL WARZONE</h1>
-  <h2>ARSENAL UPDATE • MINECRAFT STYLE</h2>
+  <h2>REMASTERED • MINECRAFT STYLE</h2>
   <div class="info">
     WASD — Move &nbsp;&nbsp; Mouse — Look &nbsp;&nbsp; Left Click — Fire<br>
     R — Reload &nbsp;&nbsp; 1, 2, 3 — Switch Weapons<br>
     Survive the waves inside the school<br><br>
-    <span style="color:#0cf">NEW: Enemies now worth 50 points!</span>
+    <span style="color:#0cf">NEW: Improved Map & Hit Detection!</span>
   </div>
   <button onclick="startGame()">ENGAGE</button>
 </div>
@@ -131,9 +131,9 @@ const mmCtx=mmCanvas.getContext('2d');
 // ============================================================
 // MINECRAFT BLOCK HELPERS
 // ============================================================
-function mcMesh(w,h,d,color,pos){
+function mcMesh(w,h,d,color,pos,metalness=0,roughness=1){
   const g=new THREE.BoxGeometry(w,h,d);
-  const m=new THREE.MeshBasicMaterial({color});
+  const m=new THREE.MeshStandardMaterial({color, metalness, roughness});
   const mesh=new THREE.Mesh(g,m);
   mesh.position.set(pos[0],pos[1],pos[2]);
   mesh.castShadow=true;
@@ -164,14 +164,22 @@ function buildPlayerAvatar(){
 function buildEnemyAvatar(){
   const g=new THREE.Group();
   const skinCol=0xee4444, shirtCol=0x444466, pantsCol=0x555577, headCol=0xff5555;
-  g.add(mcMesh(1,1,1,headCol,[0,2.5,0]));
+  
+  const head = mcMesh(1,1,1,headCol,[0,2.5,0]);
+  head.name = "head";
+  g.add(head);
+  
   g.add(mcMesh(.22,.22,.05,0xffff00,[-0.25,2.6,0.5]));
   g.add(mcMesh(.22,.22,.05,0xffff00,[0.25,2.6,0.5]));
   g.add(mcMesh(.1,.1,.06,0,[-0.25,2.6,0.52]));
   g.add(mcMesh(.1,.1,.06,0,[0.25,2.6,0.52]));
   g.add(mcMesh(.15,.35,.15,0xcc4400,[-0.45,3.1,0]));
   g.add(mcMesh(.15,.35,.15,0xcc4400,[0.45,3.1,0]));
-  g.add(mcMesh(1,1.1,.55,shirtCol,[0,1.45,0]));
+  
+  const torso = mcMesh(1,1.1,.55,shirtCol,[0,1.45,0]);
+  torso.name = "torso";
+  g.add(torso);
+  
   g.add(mcMesh(.15,1.1,.02,0xee2222,[0,1.45,.28]));
   g.add(mcMesh(1,.15,.02,0xee2222,[0,1.45,.28]));
   g.add(mcMesh(.28,1,.28,skinCol,[-0.64,1.4,0]));
@@ -180,6 +188,7 @@ function buildEnemyAvatar(){
   g.add(mcMesh(.35,1,.35,pantsCol,[0.18,.5,0]));
   g.add(mcMesh(.4,.15,.4,0x444444,[-0.18,.075,0]));
   g.add(mcMesh(.4,.15,.4,0x444444,[0.18,.075,0]));
+  
   return g;
 }
 
@@ -187,16 +196,59 @@ function buildEnemyAvatar(){
 // MAP
 // ============================================================
 function buildSchoolMap(){
-  scene.add(mcMesh(150,0.1,90,0x333333,[0,0,0])); // Floor
+  // Floor with checkered pattern
+  for(let x=-75; x<75; x+=10) {
+    for(let z=-45; z<45; z+=10) {
+      const color = (Math.floor(x/10) + Math.floor(z/10)) % 2 === 0 ? 0x333333 : 0x3a3a3a;
+      scene.add(mcMesh(10, 0.1, 10, color, [x+5, 0, z+5]));
+    }
+  }
+
+  // Outer Walls
   addWall(-75,0,0,1,10,90,0x222222); addWall(75,0,0,1,10,90,0x222222);
   addWall(0,0,-45,150,10,1,0x222222); addWall(0,0,45,150,10,1,0x222222);
-  addWall(-28,0,-22.5,1,10,45,0x444444); addWall(18,0,-22.5,1,10,45,0x444444);
-  addWall(-7,0,-22.5,1,10,45,0x444444); addWall(0,0,-3,150,10,1,0x444444);
-  addWall(-7,0,22.5,1,10,45,0x444444); addWall(18,0,22.5,1,10,45,0x444444);
+  
+  // Interior Walls with some "windows" (simulated with light color)
+  addWall(-28,0,-22.5,1,10,45,0x444444); 
+  addWall(18,0,-22.5,1,10,45,0x444444);
+  addWall(-7,0,-22.5,1,10,45,0x444444); 
+  addWall(0,0,-3,150,10,1,0x444444);
+  addWall(-7,0,22.5,1,10,45,0x444444); 
+  addWall(18,0,22.5,1,10,45,0x444444);
   addWall(0,0,3,150,10,1,0x444444);
+
+  // Classroom Decorations
+  // Classroom 1: Desks and Chairs
   for(let i=0;i<4;i++) for(let j=0;j<3;j++) {
-    addWall(-50+i*5,0,-35+j*6,2,1,1.5,0x664422);
-    addWall(25+i*5,0,-35+j*6,2,1,1.5,0x664422);
+    const dx = -50+i*5, dz = -35+j*6;
+    addWall(dx,0,dz,2,1,1.5,0x664422); // Desk
+    addWall(dx,0,dz+1.5,1,0.6,1,0x442211); // Chair
+  }
+  
+  // Classroom 2: Science Lab style
+  for(let i=0;i<3;i++) {
+    addWall(25+i*8, 0, -30, 6, 1.2, 3, 0x888888); // Lab tables
+    addWall(25+i*8, 1.2, -30, 1, 0.5, 1, 0x00ff00); // Beakers (green)
+  }
+
+  // Library: Bookshelves
+  for(let i=0; i<3; i++) {
+    addWall(0, 0, -15 - i*8, 10, 8, 1.5, 0x332211); // Bookshelves
+  }
+
+  // Cafeteria: Long tables
+  for(let i=0; i<2; i++) {
+    addWall(-40, 0, 15 + i*12, 20, 1, 4, 0x775533);
+  }
+
+  // Gym: Benches
+  for(let i=0; i<2; i++) {
+    addWall(35, 0, 10 + i*20, 1.5, 0.5, 15, 0x224488);
+  }
+  
+  // Pillars in the Hallway
+  for(let x=-60; x<=60; x+=20) {
+    addWall(x, 0, 0, 1, 10, 1, 0x555555);
   }
 }
 
@@ -231,8 +283,17 @@ function init(){
   renderer.setPixelRatio(devicePixelRatio); renderer.shadowMap.enabled=true;
   document.body.appendChild(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.AmbientLight(0xffffff,1.8));
-  const sun=new THREE.DirectionalLight(0xffffff,1.2); sun.position.set(20,30,20); sun.castShadow=true; scene.add(sun);
+  
+  // Improved Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const sun=new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(20,50,20); sun.castShadow=true;
+  sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+  scene.add(sun);
+  
+  // Add some point lights for atmosphere in classrooms
+  const p1 = new THREE.PointLight(0x00ccff, 1, 20); p1.position.set(-40, 5, -20); scene.add(p1);
+  const p2 = new THREE.PointLight(0xffaa00, 1, 20); p2.position.set(40, 5, 20); scene.add(p2);
+
   buildSchoolMap();
   playerModel=buildPlayerAvatar(); scene.add(playerModel);
   const mfMat=new THREE.MeshBasicMaterial({color:0xffaa00,transparent:true,opacity:1});
@@ -331,6 +392,32 @@ function spawnParticles(pos,color,count){
   }
 }
 
+// Improved Hit Detection Function
+function checkEnemyHit(bullet) {
+  const bp = bullet.mesh.position;
+  for(let j=enemies.length-1;j>=0;j--){
+    const e=enemies[j];
+    // Check hit boxes of head and torso
+    for(const child of e.mesh.children) {
+      if(child.name === "head" || child.name === "torso") {
+        const box = new THREE.Box3().setFromObject(child);
+        if(box.containsPoint(bp)) {
+          let damage = bullet.damage;
+          if(child.name === "head") {
+            damage *= 2.5; // Headshot bonus!
+            addKillFeed('HEADSHOT!');
+          }
+          return { hit: true, enemyIdx: j, damage };
+        }
+      }
+    }
+    // Fallback to simple cylinder collision for limbs/gap
+    const d = bp.distanceTo(e.pos.clone().setY(bp.y));
+    if(d < 0.7) return { hit: true, enemyIdx: j, damage: bullet.damage };
+  }
+  return { hit: false };
+}
+
 function update(dt){
   if(!gameRunning||gameOver)return;
   if(isReloading&&(performance.now()/1000-reloadStart)>=WEAPONS[currentWeaponIdx].reloadTime)finishReload();
@@ -379,20 +466,27 @@ function update(dt){
     const b=bullets[i]; b.life-=dt; b.mesh.position.add(b.dir.clone().multiplyScalar(b.speed*dt));
     const bp=b.mesh.position;
     if(Math.abs(bp.x)>72||Math.abs(bp.z)>45||b.life<=0){ scene.remove(b.mesh);bullets.splice(i,1);continue; }
+    
     let hitWall=false;
     for(const box of collisionBoxes) if(bp.x>box.min.x&&bp.x<box.max.x&&bp.z>box.min.z&&bp.z<box.max.z&&bp.y>box.min.y&&bp.y<box.max.y){
       spawnParticles(bp.clone(),0xaaaaaa,3); scene.remove(b.mesh);bullets.splice(i,1);hitWall=true;break;
     }
     if(hitWall)continue;
-    for(let j=enemies.length-1;j>=0;j--){
-      const e=enemies[j]; if(bp.distanceTo(e.pos.clone().setY(bp.y))<.75){
-        e.hp-=b.damage; spawnParticles(bp.clone(),0xcc3333,4);
-        if(e.hp<=0){
-          spawnParticles(e.pos.clone().setY(1.5),0xff4444,15); scene.remove(e.mesh);enemies.splice(j,1);
-          score+=50; addKillFeed('Enemy eliminated +50');
-        }
-        scene.remove(b.mesh);bullets.splice(i,1);break;
+    
+    const hitResult = checkEnemyHit(b);
+    if(hitResult.hit) {
+      const e = enemies[hitResult.enemyIdx];
+      e.hp -= hitResult.damage;
+      spawnParticles(bp.clone(), 0xcc3333, 4);
+      if(e.hp <= 0) {
+        spawnParticles(e.pos.clone().setY(1.5), 0xff4444, 15);
+        scene.remove(e.mesh);
+        enemies.splice(hitResult.enemyIdx, 1);
+        score += 50;
+        addKillFeed('Enemy eliminated +50');
       }
+      scene.remove(b.mesh);
+      bullets.splice(i, 1);
     }
   }
 
